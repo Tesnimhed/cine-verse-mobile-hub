@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { authApi } from '../services/api';
+import { userApi as authApi } from '../services/api';
 import { useToast } from '@/components/ui/use-toast';
 
 interface User {

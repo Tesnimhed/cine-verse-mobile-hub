@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { bookingApi } from '../services/api';
@@ -139,7 +138,6 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     try {
       const booking = await bookingApi.createBooking({
-        userId: user.id,
         screeningId: selectedScreening.id,
         seats: selectedSeats.map(seat => seat.id),
         snacks: selectedSnacks.map(snack => ({ id: snack.id, quantity: snack.quantity })),

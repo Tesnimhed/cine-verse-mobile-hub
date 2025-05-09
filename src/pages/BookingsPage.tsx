@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -27,7 +26,7 @@ const BookingsPage = () => {
     const fetchBookings = async () => {
       try {
         setLoading(true);
-        const bookingsData = await bookingApi.getUserBookings(user.id);
+        const bookingsData = await bookingApi.getUserBookings();
         setBookings(bookingsData);
       } catch (err) {
         console.error('Error fetching bookings:', err);
