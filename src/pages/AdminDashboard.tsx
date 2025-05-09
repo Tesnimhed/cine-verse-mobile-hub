@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { 
   BarChart, 
@@ -19,7 +20,7 @@ import {
   Legend, 
   ResponsiveContainer 
 } from 'recharts';
-import { Users, Film, Ticket, Calendar, Edit, Trash2, UserX, UserCheck } from 'lucide-react';
+import { Users, Film, Ticket, Calendar, Edit, Trash2, UserX, UserCheck, Menu, ChevronRight, ChevronLeft } from 'lucide-react';
 
 import { userApi, screeningApi } from '../services/api';
 import { format } from 'date-fns';
@@ -67,6 +68,7 @@ const AdminDashboard = () => {
   const [isEditScreeningDialogOpen, setIsEditScreeningDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedScreening, setSelectedScreening] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { toast } = useToast();
   
   useEffect(() => {
@@ -192,15 +194,29 @@ const AdminDashboard = () => {
     }
   };
   
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="flex">
         {/* Sidebar */}
-        <div className="w-64 bg-cinema-dark h-screen fixed">
-          <div className="p-5">
-            <h1 className="text-xl font-bold text-white flex items-center">
-              <span className="text-cinema-secondary mr-2">My</span>Ciné Admin
-            </h1>
+        <div className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-cinema-dark h-screen fixed transition-all duration-300 ease-in-out`}>
+          <div className="p-5 flex justify-between items-center">
+            {!sidebarCollapsed && (
+              <h1 className="text-xl font-bold text-white flex items-center">
+                <span className="text-cinema-secondary mr-2">My</span>Ciné Admin
+              </h1>
+            )}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleSidebar}
+              className="text-white hover:bg-gray-800"
+            >
+              {sidebarCollapsed ? <ChevronRight /> : <ChevronLeft />}
+            </Button>
           </div>
           
           <nav className="mt-6">
@@ -209,6 +225,7 @@ const AdminDashboard = () => {
               onClick={() => setActiveTab("overview")}
               icon={<BarChart className="h-5 w-5" />}
               label="Vue d'ensemble"
+              collapsed={sidebarCollapsed}
             />
             
             <SidebarLink 
@@ -216,6 +233,7 @@ const AdminDashboard = () => {
               onClick={() => setActiveTab("bookings")}
               icon={<Ticket className="h-5 w-5" />}
               label="Réservations"
+              collapsed={sidebarCollapsed}
             />
             
             <SidebarLink 
@@ -223,6 +241,7 @@ const AdminDashboard = () => {
               onClick={() => setActiveTab("users")}
               icon={<Users className="h-5 w-5" />}
               label="Utilisateurs"
+              collapsed={sidebarCollapsed}
             />
             
             <SidebarLink 
@@ -230,6 +249,7 @@ const AdminDashboard = () => {
               onClick={() => setActiveTab("movies")}
               icon={<Film className="h-5 w-5" />}
               label="Films"
+              collapsed={sidebarCollapsed}
             />
             
             <SidebarLink 
@@ -237,14 +257,53 @@ const AdminDashboard = () => {
               onClick={() => setActiveTab("scheduling")}
               icon={<Calendar className="h-5 w-5" />}
               label="Programmation"
+              collapsed={sidebarCollapsed}
             />
           </nav>
         </div>
         
         {/* Main content */}
-        <div className="ml-64 w-full">
+        <div className={`${sidebarCollapsed ? 'ml-16' : 'ml-64'} w-full transition-all duration-300 ease-in-out`}>
           <div className="p-8">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
+              {/* Mobile sidebar trigger */}
+              <div className="md:hidden mb-4">
+                <Drawer>
+                  <DrawerTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </DrawerTrigger>
+                  <DrawerContent className="bg-cinema-dark text-white">
+                    <div className="p-4">
+                      <h2 className="text-lg font-bold mb-4">Menu Admin</h2>
+                      <div className="flex flex-col space-y-2">
+                        <Button variant="ghost" className="justify-start" onClick={() => setActiveTab("overview")}>
+                          <BarChart className="h-5 w-5 mr-2" />
+                          Vue d'ensemble
+                        </Button>
+                        <Button variant="ghost" className="justify-start" onClick={() => setActiveTab("bookings")}>
+                          <Ticket className="h-5 w-5 mr-2" />
+                          Réservations
+                        </Button>
+                        <Button variant="ghost" className="justify-start" onClick={() => setActiveTab("users")}>
+                          <Users className="h-5 w-5 mr-2" />
+                          Utilisateurs
+                        </Button>
+                        <Button variant="ghost" className="justify-start" onClick={() => setActiveTab("movies")}>
+                          <Film className="h-5 w-5 mr-2" />
+                          Films
+                        </Button>
+                        <Button variant="ghost" className="justify-start" onClick={() => setActiveTab("scheduling")}>
+                          <Calendar className="h-5 w-5 mr-2" />
+                          Programmation
+                        </Button>
+                      </div>
+                    </div>
+                  </DrawerContent>
+                </Drawer>
+              </div>
+
               <TabsList className="mb-6">
                 <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
                 <TabsTrigger value="bookings">Réservations</TabsTrigger>
@@ -824,23 +883,26 @@ const SidebarLink = ({
   isActive, 
   onClick, 
   icon, 
-  label 
+  label,
+  collapsed
 }: { 
   isActive: boolean; 
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
+  collapsed: boolean;
 }) => (
   <button
     className={`w-full flex items-center py-3 px-5 ${
       isActive 
         ? 'bg-gray-800 text-cinema-secondary' 
         : 'text-gray-300 hover:bg-gray-800 hover:text-gray-100'
-    }`}
+    } ${collapsed ? 'justify-center' : ''}`}
     onClick={onClick}
+    title={collapsed ? label : ""}
   >
-    {React.cloneElement(icon as React.ReactElement, { className: "mr-3 h-5 w-5" })}
-    <span>{label}</span>
+    {React.cloneElement(icon as React.ReactElement, { className: collapsed ? "h-5 w-5" : "mr-3 h-5 w-5" })}
+    {!collapsed && <span>{label}</span>}
   </button>
 );
 
