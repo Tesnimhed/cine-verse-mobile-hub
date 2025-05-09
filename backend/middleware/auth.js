@@ -20,6 +20,11 @@ module.exports = async function (req, res, next) {
     if (!user) {
       return res.status(401).json({ message: 'Token invalide' });
     }
+    
+    // Vérifier si l'utilisateur est bloqué
+    if (user.blocked) {
+      return res.status(403).json({ message: 'Votre compte a été bloqué. Veuillez contacter l\'administrateur.' });
+    }
 
     // Ajouter l'utilisateur à la requête
     req.user = user;

@@ -95,6 +95,11 @@ router.post('/login', [
       return res.status(400).json({ message: 'Email ou mot de passe incorrect' });
     }
 
+    // Vérifier si l'utilisateur est bloqué
+    if (user.blocked) {
+      return res.status(403).json({ message: 'Votre compte a été bloqué. Veuillez contacter l\'administrateur.' });
+    }
+
     // Vérifier le mot de passe
     const isMatch = await bcrypt.compare(password, user.password);
 

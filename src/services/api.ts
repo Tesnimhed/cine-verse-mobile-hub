@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 
 const TMDB_API_KEY = 'ce05b0aeccbb018b815e9aade2287f2c';
@@ -6,7 +5,9 @@ const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
 
 // Configuration pour l'API backend
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Note: Pour le développement local, utilisez le port 5000
+// Pour l'environnement de production, utilisez une URL relative
+const API_URL = '/api';
 
 /**
  * TMDB API Services
@@ -131,6 +132,56 @@ export const userApi = {
   logout: async () => {
     localStorage.removeItem('mycine_token');
     return true;
+  },
+
+  // Admin: Delete user
+  deleteUser: async (userId) => {
+    try {
+      const token = localStorage.getItem('mycine_token');
+      if (!token) throw new Error('Non autorisé: Veuillez vous connecter');
+      
+      const response = await axios.delete(`${API_URL}/admin/users/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Erreur lors de la suppression de l'utilisateur ${userId}:`, error);
+      throw error;
+    }
+  },
+  
+  // Admin: Block/Unblock user
+  toggleBlockUser: async (userId, blocked) => {
+    try {
+      const token = localStorage.getItem('mycine_token');
+      if (!token) throw new Error('Non autorisé: Veuillez vous connecter');
+      
+      const response = await axios.put(
+        `${API_URL}/admin/users/${userId}/block`,
+        { blocked },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      console.error(`Erreur lors du changement de statut de l'utilisateur ${userId}:`, error);
+      throw error;
+    }
+  },
+  
+  // Admin: Get all users
+  getAllUsers: async () => {
+    try {
+      const token = localStorage.getItem('mycine_token');
+      if (!token) throw new Error('Non autorisé: Veuillez vous connecter');
+      
+      const response = await axios.get(`${API_URL}/admin/users`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des utilisateurs:', error);
+      throw error;
+    }
   }
 };
 
@@ -286,10 +337,79 @@ export const bookingApi = {
   }
 };
 
+/**
+ * Screening API Services (nouveau service pour la gestion des séances)
+ */
+export const screeningApi = {
+  // Admin: Update screening details
+  updateScreening: async (screeningId, screeningData) => {
+    try {
+      const token = localStorage.getItem('mycine_token');
+      if (!token) throw new Error('Non autorisé: Veuillez vous connecter');
+      
+      const response = await axios.put(
+        `${API_URL}/screenings/${screeningId}`,
+        screeningData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour de la séance ${screeningId}:`, error);
+      throw error;
+    }
+  },
+  
+  // Admin: Delete screening
+  deleteScreening: async (screeningId) => {
+    try {
+      const token = localStorage.getItem('mycine_token');
+      if (!token) throw new Error('Non autorisé: Veuillez vous connecter');
+      
+      const response = await axios.delete(`${API_URL}/screenings/${screeningId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Erreur lors de la suppression de la séance ${screeningId}:`, error);
+      throw error;
+    }
+  },
+  
+  // Admin: Create screening
+  createScreening: async (screeningData) => {
+    try {
+      const token = localStorage.getItem('mycine_token');
+      if (!token) throw new Error('Non autorisé: Veuillez vous connecter');
+      
+      const response = await axios.post(
+        `${API_URL}/screenings`,
+        screeningData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      console.error(`Erreur lors de la création de la séance:`, error);
+      throw error;
+    }
+  },
+  
+  // Get screening details
+  getScreeningDetails: async (screeningId) => {
+    try {
+      const response = await axios.get(`${API_URL}/screenings/${screeningId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Erreur lors de la récupération des détails de la séance ${screeningId}:`, error);
+      throw error;
+    }
+  }
+};
+
 export default {
   tmdb: tmdbApi,
   user: userApi,
   cinema: cinemaApi,
   snack: snackApi,
-  booking: bookingApi
+  booking: bookingApi,
+  screening: screeningApi
 };

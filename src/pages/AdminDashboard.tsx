@@ -1,8 +1,14 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+
 import { 
   BarChart, 
   Bar, 
@@ -13,7 +19,11 @@ import {
   Legend, 
   ResponsiveContainer 
 } from 'recharts';
-import { Users, Film, Ticket, Calendar } from 'lucide-react';
+import { Users, Film, Ticket, Calendar, Edit, Trash2, UserX, UserCheck } from 'lucide-react';
+
+import { userApi, screeningApi } from '../services/api';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 // Mock data for dashboard
 const salesData = [
@@ -34,14 +44,6 @@ const bookingsData = [
   { id: 'book-5', user: 'Thomas Richard', movie: 'Kung Fu Panda 4', seats: 2, total: '19.00€', date: '07/05/2025' }
 ];
 
-const usersData = [
-  { id: 'user-1', name: 'Jean Dupont', email: 'jean.dupont@example.com', bookings: 3, joined: '02/04/2025' },
-  { id: 'user-2', name: 'Marie Martin', email: 'marie.martin@example.com', bookings: 5, joined: '15/03/2025' },
-  { id: 'user-3', name: 'Lucas Bernard', email: 'lucas.bernard@example.com', bookings: 1, joined: '30/04/2025' },
-  { id: 'user-4', name: 'Sophie Petit', email: 'sophie.petit@example.com', bookings: 2, joined: '10/04/2025' },
-  { id: 'user-5', name: 'Thomas Richard', email: 'thomas.richard@example.com', bookings: 4, joined: '22/03/2025' }
-];
-
 const moviesData = [
   { id: 'movie-1', title: 'Dune: Part Two', bookings: 48, revenue: '456.00€', screening: 12 },
   { id: 'movie-2', title: 'Civil War', bookings: 36, revenue: '342.00€', screening: 10 },
@@ -52,6 +54,143 @@ const moviesData = [
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
+  const [users, setUsers] = useState([]);
+  const [screeningDetails, setScreeningDetails] = useState({
+    id: '',
+    startTime: '',
+    endTime: '',
+    format: '',
+    language: ''
+  });
+  const [isDeleteUserDialogOpen, setIsDeleteUserDialogOpen] = useState(false);
+  const [isBlockUserDialogOpen, setIsBlockUserDialogOpen] = useState(false);
+  const [isEditScreeningDialogOpen, setIsEditScreeningDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedScreening, setSelectedScreening] = useState(null);
+  const { toast } = useToast();
+  
+  useEffect(() => {
+    if (activeTab === "users") {
+      fetchUsers();
+    }
+  }, [activeTab]);
+  
+  const fetchUsers = async () => {
+    try {
+      const userData = await userApi.getAllUsers();
+      setUsers(userData);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des utilisateurs:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de récupérer la liste des utilisateurs",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleDeleteUser = async (userId) => {
+    try {
+      await userApi.deleteUser(userId);
+      setUsers(users.filter(user => user._id !== userId));
+      setIsDeleteUserDialogOpen(false);
+      toast({
+        title: "Succès",
+        description: "L'utilisateur a été supprimé avec succès"
+      });
+    } catch (error) {
+      console.error('Erreur lors de la suppression de l\'utilisateur:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer l'utilisateur",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleToggleBlockUser = async (userId, blocked) => {
+    try {
+      await userApi.toggleBlockUser(userId, blocked);
+      setUsers(users.map(user => 
+        user._id === userId ? { ...user, blocked } : user
+      ));
+      setIsBlockUserDialogOpen(false);
+      toast({
+        title: "Succès",
+        description: blocked ? "L'utilisateur a été bloqué avec succès" : "L'utilisateur a été débloqué avec succès"
+      });
+    } catch (error) {
+      console.error('Erreur lors du changement de statut de l\'utilisateur:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier le statut de l'utilisateur",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleUpdateScreening = async (screeningId) => {
+    try {
+      // Format dates correctly for backend
+      const formattedData = {
+        ...screeningDetails,
+        startTime: new Date(screeningDetails.startTime).toISOString(),
+        endTime: new Date(screeningDetails.endTime).toISOString()
+      };
+      
+      await screeningApi.updateScreening(screeningId, formattedData);
+      setIsEditScreeningDialogOpen(false);
+      toast({
+        title: "Succès",
+        description: "La séance a été mise à jour avec succès"
+      });
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la séance:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour la séance",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleOpenEditScreening = async (screening) => {
+    try {
+      const screeningData = await screeningApi.getScreeningDetails(screening.id);
+      
+      // Format dates for form inputs
+      const startDateTime = new Date(screeningData.startTime);
+      const endDateTime = new Date(screeningData.endTime);
+      
+      const formatDateForInput = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+      };
+      
+      setScreeningDetails({
+        id: screeningData._id,
+        startTime: formatDateForInput(startDateTime),
+        endTime: formatDateForInput(endDateTime),
+        format: screeningData.format,
+        language: screeningData.language
+      });
+      
+      setSelectedScreening(screeningData);
+      setIsEditScreeningDialogOpen(true);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des détails de la séance:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de récupérer les détails de la séance",
+        variant: "destructive"
+      });
+    }
+  };
   
   return (
     <div className="min-h-screen bg-gray-100">
@@ -253,21 +392,78 @@ const AdminDashboard = () => {
                           <th className="text-left py-3 px-2">ID</th>
                           <th className="text-left py-3 px-2">Nom</th>
                           <th className="text-left py-3 px-2">Email</th>
-                          <th className="text-left py-3 px-2">Réservations</th>
+                          <th className="text-left py-3 px-2">Rôle</th>
+                          <th className="text-left py-3 px-2">Statut</th>
                           <th className="text-left py-3 px-2">Inscription</th>
                           <th className="text-left py-3 px-2">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {usersData.map((user) => (
-                          <tr key={user.id} className="border-b hover:bg-gray-50">
-                            <td className="py-3 px-2">{user.id}</td>
+                        {users.map((user) => (
+                          <tr key={user._id} className="border-b hover:bg-gray-50">
+                            <td className="py-3 px-2">{user._id}</td>
                             <td className="py-3 px-2">{user.name}</td>
                             <td className="py-3 px-2">{user.email}</td>
-                            <td className="py-3 px-2">{user.bookings}</td>
-                            <td className="py-3 px-2">{user.joined}</td>
                             <td className="py-3 px-2">
-                              <Button variant="outline" size="sm">Voir</Button>
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                user.role === 'admin' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100'
+                              }`}>
+                                {user.role === 'admin' ? 'Admin' : 'Utilisateur'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-2">
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                user.blocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                              }`}>
+                                {user.blocked ? 'Bloqué' : 'Actif'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-2">
+                              {new Date(user.createdAt).toLocaleDateString('fr-FR')}
+                            </td>
+                            <td className="py-3 px-2">
+                              <div className="flex space-x-2">
+                                {user.role !== 'admin' && (
+                                  <>
+                                    {user.blocked ? (
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedUser(user);
+                                          setIsBlockUserDialogOpen(true);
+                                        }}
+                                      >
+                                        <UserCheck className="h-4 w-4 mr-1" />
+                                        Débloquer
+                                      </Button>
+                                    ) : (
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedUser(user);
+                                          setIsBlockUserDialogOpen(true);
+                                        }}
+                                      >
+                                        <UserX className="h-4 w-4 mr-1" />
+                                        Bloquer
+                                      </Button>
+                                    )}
+                                    <Button 
+                                      variant="destructive" 
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedUser(user);
+                                        setIsDeleteUserDialogOpen(true);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-1" />
+                                      Supprimer
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -275,6 +471,56 @@ const AdminDashboard = () => {
                     </table>
                   </div>
                 </Card>
+                
+                {/* Confirmation dialog for user deletion */}
+                <Dialog open={isDeleteUserDialogOpen} onOpenChange={setIsDeleteUserDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Confirmer la suppression</DialogTitle>
+                      <DialogDescription>
+                        Êtes-vous sûr de vouloir supprimer l'utilisateur {selectedUser?.name} ? Cette action est irréversible.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Annuler</Button>
+                      </DialogClose>
+                      <Button 
+                        variant="destructive"
+                        onClick={() => handleDeleteUser(selectedUser?._id)}
+                      >
+                        Supprimer
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                
+                {/* Confirmation dialog for blocking/unblocking user */}
+                <Dialog open={isBlockUserDialogOpen} onOpenChange={setIsBlockUserDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        {selectedUser?.blocked ? 'Débloquer l\'utilisateur' : 'Bloquer l\'utilisateur'}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {selectedUser?.blocked 
+                          ? `Êtes-vous sûr de vouloir débloquer l'utilisateur ${selectedUser?.name} ?`
+                          : `Êtes-vous sûr de vouloir bloquer l'utilisateur ${selectedUser?.name} ? Il ne pourra plus se connecter à son compte.`}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Annuler</Button>
+                      </DialogClose>
+                      <Button 
+                        variant={selectedUser?.blocked ? "default" : "destructive"}
+                        onClick={() => handleToggleBlockUser(selectedUser?._id, !selectedUser?.blocked)}
+                      >
+                        {selectedUser?.blocked ? 'Débloquer' : 'Bloquer'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </TabsContent>
               
               <TabsContent value="movies">
@@ -395,8 +641,23 @@ const AdminDashboard = () => {
                           <td className="py-3 px-2">2D</td>
                           <td className="py-3 px-2">
                             <div className="flex space-x-2">
-                              <Button variant="outline" size="sm">Modifier</Button>
-                              <Button variant="destructive" size="sm">Supprimer</Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleOpenEditScreening({
+                                  id: 'screening-1', 
+                                  film: 'Dune: Part Two',
+                                  cinema: 'Ciné Paradiso',
+                                  salle: 'Salle 1'
+                                })}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Modifier
+                              </Button>
+                              <Button variant="destructive" size="sm">
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Supprimer
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -409,8 +670,23 @@ const AdminDashboard = () => {
                           <td className="py-3 px-2">IMAX</td>
                           <td className="py-3 px-2">
                             <div className="flex space-x-2">
-                              <Button variant="outline" size="sm">Modifier</Button>
-                              <Button variant="destructive" size="sm">Supprimer</Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleOpenEditScreening({
+                                  id: 'screening-2', 
+                                  film: 'Civil War',
+                                  cinema: 'MegaCiné',
+                                  salle: 'Salle 3'
+                                })}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Modifier
+                              </Button>
+                              <Button variant="destructive" size="sm">
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Supprimer
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -423,8 +699,23 @@ const AdminDashboard = () => {
                           <td className="py-3 px-2">3D</td>
                           <td className="py-3 px-2">
                             <div className="flex space-x-2">
-                              <Button variant="outline" size="sm">Modifier</Button>
-                              <Button variant="destructive" size="sm">Supprimer</Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleOpenEditScreening({
+                                  id: 'screening-3', 
+                                  film: 'Kung Fu Panda 4',
+                                  cinema: 'StarPlex',
+                                  salle: 'Salle 2'
+                                })}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Modifier
+                              </Button>
+                              <Button variant="destructive" size="sm">
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Supprimer
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -432,6 +723,94 @@ const AdminDashboard = () => {
                     </table>
                   </div>
                 </Card>
+                
+                {/* Dialog for editing screening schedule */}
+                <Dialog open={isEditScreeningDialogOpen} onOpenChange={setIsEditScreeningDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Modifier la séance</DialogTitle>
+                      <DialogDescription>
+                        Modifiez les informations de la séance {selectedScreening?.film}.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                          <Label htmlFor="startTime">Début de la séance</Label>
+                          <Input 
+                            id="startTime" 
+                            type="datetime-local" 
+                            value={screeningDetails.startTime}
+                            onChange={(e) => setScreeningDetails({ 
+                              ...screeningDetails, 
+                              startTime: e.target.value 
+                            })}
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Label htmlFor="endTime">Fin de la séance</Label>
+                          <Input 
+                            id="endTime" 
+                            type="datetime-local" 
+                            value={screeningDetails.endTime}
+                            onChange={(e) => setScreeningDetails({ 
+                              ...screeningDetails, 
+                              endTime: e.target.value 
+                            })}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="format">Format</Label>
+                          <Select 
+                            value={screeningDetails.format}
+                            onValueChange={(value) => setScreeningDetails({ 
+                              ...screeningDetails, 
+                              format: value 
+                            })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Sélectionnez un format" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="2D">2D</SelectItem>
+                              <SelectItem value="3D">3D</SelectItem>
+                              <SelectItem value="4DX">4DX</SelectItem>
+                              <SelectItem value="IMAX">IMAX</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="language">Langue</Label>
+                          <Select 
+                            value={screeningDetails.language}
+                            onValueChange={(value) => setScreeningDetails({ 
+                              ...screeningDetails, 
+                              language: value 
+                            })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Sélectionnez une langue" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="VO">VO</SelectItem>
+                              <SelectItem value="VF">VF</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Annuler</Button>
+                      </DialogClose>
+                      <Button 
+                        onClick={() => handleUpdateScreening(screeningDetails.id)}
+                      >
+                        Enregistrer les modifications
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </TabsContent>
             </Tabs>
           </div>

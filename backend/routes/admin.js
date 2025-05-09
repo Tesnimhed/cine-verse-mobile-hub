@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
@@ -99,6 +98,87 @@ router.get('/dashboard', adminAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('Erreur lors de la récupération des statistiques:', err.message);
+    res.status(500).send('Erreur serveur');
+  }
+});
+
+// @route   GET api/admin/users
+// @desc    Obtenir tous les utilisateurs
+// @access  Private/Admin
+router.get('/users', adminAuth, async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    res.json(users);
+  } catch (err) {
+    console.error('Erreur lors de la récupération des utilisateurs:', err.message);
+    res.status(500).send('Erreur serveur');
+  }
+});
+
+// @route   DELETE api/admin/users/:id
+// @desc    Supprimer un utilisateur
+// @access  Private/Admin
+router.delete('/users/:id', adminAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Vérifier qu'on ne supprime pas un administrateur
+    if (user.role === 'admin') {
+      return res.status(400).json({ message: 'Impossible de supprimer un administrateur' });
+    }
+    
+    // Supprimer l'utilisateur
+    await user.deleteOne();
+    
+    res.json({ message: 'Utilisateur supprimé avec succès' });
+  } catch (err) {
+    console.error('Erreur lors de la suppression de l\'utilisateur:', err.message);
+    res.status(500).send('Erreur serveur');
+  }
+});
+
+// @route   PUT api/admin/users/:id/block
+// @desc    Bloquer/Débloquer un utilisateur
+// @access  Private/Admin
+router.put('/users/:id/block', adminAuth, async (req, res) => {
+  try {
+    const { blocked } = req.body;
+    
+    if (blocked === undefined) {
+      return res.status(400).json({ message: 'Le statut de blocage est requis' });
+    }
+    
+    const user = await User.findById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Vérifier qu'on ne bloque pas un administrateur
+    if (user.role === 'admin') {
+      return res.status(400).json({ message: 'Impossible de bloquer un administrateur' });
+    }
+    
+    // Mettre à jour le statut de blocage
+    user.blocked = blocked;
+    await user.save();
+    
+    res.json({
+      message: blocked ? 'Utilisateur bloqué avec succès' : 'Utilisateur débloqué avec succès',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        blocked: user.blocked
+      }
+    });
+  } catch (err) {
+    console.error('Erreur lors du changement de statut de l\'utilisateur:', err.message);
     res.status(500).send('Erreur serveur');
   }
 });
